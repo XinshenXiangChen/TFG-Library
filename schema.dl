@@ -1,0 +1,35 @@
+%+ Classes and associations
+
+%  User(id, name)
+%  Business(id, location)
+%  NavigatesTo(userId, businessId)
+
+%+ Constraints for Association class OID
+% (Not applicable for this schema as there are no association classes)
+
+%+ Constraints for hierarchies
+% (Not applicable for this schema as there are no hierarchies)
+
+%+ Constraints for associations
+isUserAux(U_id) :- User(U_id, U_name)
+isBusinessAux(B_id) :- Business(B_id, B_location)
+
+  @1 :- NavigatesTo(U_id, B_id), not(isUserAux(U_id))
+  @2 :- NavigatesTo(U_id, B_id), not(isBusinessAux(B_id))
+
+%+ Constraints for association cardinalities
+% (The PlantUML "User --> Business" implies a default 0..* to 0..* cardinality.
+% No specific minimum or maximum cardinalities were provided in the schema or text,
+% so no further constraints are needed here beyond referential integrity.)
+
+%+ Constraints for attribute cardinalities (Primary Key uniqueness and functional dependencies)
+  % For User(id, name): 'id' is the primary key. If 'id' is the same, 'name' must be the same.
+  @3 :- User(U_id, U_name1), User(U_id, U_name2), U_name1 <> U_name2
+  % For Business(id, location): 'id' is the primary key. If 'id' is the same, 'location' must be the same.
+  @4 :- Business(B_id, B_location1), Business(B_id, B_location2), B_location1 <> B_location2
+
+%+ OCL constraints (from textual restrictions)
+  % id (for User) must be greater than 30
+  @5 :- User(U_id, U_name), U_id <= 30
+  % id (for Business) must be greater than 30
+  @6 :- Business(B_id, B_location), B_id <= 30

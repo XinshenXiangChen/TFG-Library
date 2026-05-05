@@ -1,0 +1,12 @@
+{
+  "User": {
+    "id": "Integer",
+    "name": "String",
+    "primary key": "id"
+  },
+  "Business": {
+    "id": "Integer",
+    "location": "String",
+    "primary key": "id"
+  }
+}
