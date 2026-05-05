@@ -6,6 +6,7 @@ import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+//
 public final class DatalogConstraintMerger {
 
     private static final Pattern CONSTRAINT_ID_PATTERN = Pattern.compile("@(\\d+)");
