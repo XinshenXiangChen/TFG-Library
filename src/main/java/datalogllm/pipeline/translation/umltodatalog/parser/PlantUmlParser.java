@@ -7,10 +7,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
- * Very lightweight parser that reads a subset of PlantUML class diagrams and
- * produces an {@link UmlModel}.
+ * A concrete implementation of {@link UmlParser} for the PlantUML syntax.
+ * This class is responsible for parsing a subset of PlantUML class diagrams.
  */
-public final class PlantUmlParser {
+public final class PlantUmlParser implements UmlParser {
 
     private static final Pattern CLASS_DECL_PATTERN =
             Pattern.compile("^\\s*class\\s+(\\w+)\\s*\\{?\\s*$");
@@ -24,13 +24,14 @@ public final class PlantUmlParser {
             Pattern.compile("^\\s*(\\w+)\\s*<\\|--\\s*(\\w+)\\s*$");
     private static final Pattern ASSOCIATION_PATTERN =
             Pattern.compile("^\\s*(\\w+)(?:\\s+\"([^\"]+)\")?\\s*" +
-                            "(-{1,2}|<{1,2}|>{1,2})?(-{1,2}|\\>{1,2}|<{1,2})\\s*" +
-                            "\"?([^\"\\s]+)?\"?\\s*(\\w+)\\s*(?::\\s*(.*))?$");
+                    "(-{1,2}|<{1,2}|>{1,2})?(-{1,2}|\\>{1,2}|<{1,2})\\s*" +
+                    "\"?([^\"\\s]+)?\"?\\s*(\\w+)\\s*(?::\\s*(.*))?$");
 
-    private PlantUmlParser() {
+    public PlantUmlParser() {
     }
 
-    public static UmlModel parse(String plantUml) {
+    @Override
+    public UmlModel parse(String plantUml) {
         Objects.requireNonNull(plantUml, "plantUml must not be null");
 
         UmlModel model = new UmlModel();

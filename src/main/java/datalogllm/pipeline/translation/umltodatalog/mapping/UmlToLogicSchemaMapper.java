@@ -1,15 +1,17 @@
 package datalogllm.pipeline.translation.umltodatalog.mapping;
 
+import datalogllm.pipeline.translation.umltodatalog.utils.UmlToDatalogUtils;
 import datalogllm.pipeline.umlMetamodel.*;
+import edu.upc.fib.inlab.imp.kse.logics.logicschema.domain.LogicSchema;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 
 public final class UmlToLogicSchemaMapper {
@@ -17,7 +19,8 @@ public final class UmlToLogicSchemaMapper {
         "date", "time", "timestamp", "year", "month", "day",
         "select", "from", "where", "group", "order", "by",
         "table", "create", "drop", "insert", "update", "delete",
-        "primary", "key", "constraint", "assertion", "join"
+        "primary", "key", "constraint", "assertion", "join",
+        "user", "role", "index", "view"
     );
 
     public record Inheritance(UmlClass subClass, UmlClass superClass) { }
@@ -33,134 +36,24 @@ public final class UmlToLogicSchemaMapper {
     public String toDatalog(UmlModel umlModel, List<Inheritance> inheritances) {
         Objects.requireNonNull(umlModel, "umlModel must not be null");
         Objects.requireNonNull(inheritances, "inheritances must not be null");
+        LogicSchema schema = UmlModelToLogicSchema.fromUmlModel(umlModel, inheritances);
+        return UmlToDatalogUtils.printLogicSchema(schema);
+    }
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("%+ Classes and associations\n\n");
+    /**
+     * Builds an IMP-Logics {@link LogicSchema} in memory (no Datalog text round-trip).
+     * {@link #toDatalog(UmlModel, List)} serializes this schema with {@link UmlToDatalogUtils#printLogicSchema(LogicSchema)}.
+     */
+    public LogicSchema toLogicSchema(UmlModel umlModel) {
+        return UmlModelToLogicSchema.fromUmlModel(umlModel);
+    }
 
-        for (UmlClass c : umlModel.getClasses()) {
-            List<String> attrVars = variableNamesForClassAttributes(c);
-            sb.append("%  ").append(c.getClassName()).append("(")
-                .append(String.join(", ", attrVars))
-                .append(")\n");
-        }
-
-        for (Association a : umlModel.getAssociations()) {
-            List<AssociationEnd> ends = a.getEnds();
-            if (ends.size() != 2) continue;
-            UmlClass leftClass = ends.get(0).getType();
-            UmlClass rightClass = ends.get(1).getType();
-            String leftVar = idVar(leftClass);
-            String rightVar = idVar(rightClass);
-            String predName = a.getName();
-            sb.append("%  ").append(predName)
-                .append("(").append(leftVar).append(", ").append(rightVar).append(")\n");
-        }
-        sb.append("\n");
-
-        int[] nextConstraintId = {1};
-        Set<String> auxPredicatesDefined = new LinkedHashSet<>();
-
-        if (!inheritances.isEmpty()) {
-            sb.append("%+ Constraints for hierarchies\n\n");
-            Set<UmlClass> superClasses = new LinkedHashSet<>();
-            for (Inheritance inh : inheritances) superClasses.add(inh.superClass());
-            for (UmlClass superClass : superClasses) appendAuxPredicateIfNeeded(sb, superClass, auxPredicatesDefined);
-
-            for (Inheritance inh : inheritances) {
-                UmlClass subClass = inh.subClass();
-                UmlClass superClass = inh.superClass();
-                List<String> subVars = variableNamesForClassAttributes(subClass);
-                if (subVars.isEmpty()) continue;
-                String subId = idVar(subClass);
-                String superAuxName = "is" + superClass.getClassName() + "Aux";
-                sb.append("  @").append(nextConstraintId[0]++)
-                    .append(" :- ")
-                    .append(subClass.getClassName())
-                    .append("(").append(String.join(", ", subVars)).append("), ")
-                    .append("not(").append(superAuxName).append("(").append(subId).append("))\n");
-            }
-            sb.append("\n");
-        }
-
-        sb.append("%+ Constraints for associations\n\n");
-        Set<UmlClass> classesUsedInAssociations = new LinkedHashSet<>();
-        for (Association a : umlModel.getAssociations()) {
-            for (AssociationEnd end : a.getEnds()) classesUsedInAssociations.add(end.getType());
-        }
-        for (UmlClass c : classesUsedInAssociations) appendAuxPredicateIfNeeded(sb, c, auxPredicatesDefined);
-        sb.append("\n");
-
-        for (Association a : umlModel.getAssociations()) {
-            List<AssociationEnd> ends = a.getEnds();
-            if (ends.size() != 2) continue;
-            String predName = a.getName();
-            UmlClass leftClass = ends.get(0).getType();
-            UmlClass rightClass = ends.get(1).getType();
-            String leftId = idVar(leftClass);
-            String rightId = idVar(rightClass);
-
-            sb.append("  @").append(nextConstraintId[0]++)
-                .append(" :- ").append(predName)
-                .append("(").append(leftId).append(", ").append(rightId).append("), ")
-                .append("not(is").append(leftClass.getClassName()).append("Aux(").append(leftId).append("))\n");
-
-            sb.append("  @").append(nextConstraintId[0]++)
-                .append(" :- ").append(predName)
-                .append("(").append(leftId).append(", ").append(rightId).append("), ")
-                .append("not(is").append(rightClass.getClassName()).append("Aux(").append(rightId).append("))\n");
-        }
-        sb.append("\n");
-
-        sb.append("%+ Constraints for association cardinalities\n\n");
-        for (Association a : umlModel.getAssociations()) {
-            List<AssociationEnd> ends = a.getEnds();
-            if (ends.size() != 2) continue;
-            String predName = a.getName();
-            AssociationEnd leftEnd = ends.get(0);
-            AssociationEnd rightEnd = ends.get(1);
-            UmlClass leftClass = leftEnd.getType();
-            UmlClass rightClass = rightEnd.getType();
-            String leftId = idVar(leftClass);
-            String rightId = idVar(rightClass);
-
-            if (leftEnd.getMin() >= 1) {
-                String minPredName = "Min" + predName + "_" + leftClass.getClassName();
-                sb.append("  ").append(minPredName).append("(").append(rightId).append(") :- ")
-                    .append(predName).append("(").append(leftId).append(", ").append(rightId).append(")\n");
-                List<String> classVars = variableNamesForClassAttributes(rightClass);
-                if (!classVars.isEmpty()) {
-                    sb.append("  @").append(nextConstraintId[0]++)
-                        .append(" :- ").append(rightClass.getClassName())
-                        .append("(").append(String.join(", ", classVars)).append("), ")
-                        .append("not(").append(minPredName).append("(").append(rightId).append("))\n");
-                }
-            }
-
-            if (rightEnd.getMin() >= 1) {
-                String minPredName = "Min" + predName + "_" + rightClass.getClassName();
-                sb.append("  ").append(minPredName).append("(").append(leftId).append(") :- ")
-                    .append(predName).append("(").append(leftId).append(", ").append(rightId).append(")\n");
-                List<String> classVars = variableNamesForClassAttributes(leftClass);
-                if (!classVars.isEmpty()) {
-                    sb.append("  @").append(nextConstraintId[0]++)
-                        .append(" :- ").append(leftClass.getClassName())
-                        .append("(").append(String.join(", ", classVars)).append("), ")
-                        .append("not(").append(minPredName).append("(").append(leftId).append("))\n");
-                }
-            }
-
-            if (leftEnd.getMax() == 1) {
-                sb.append("  @").append(nextConstraintId[0]++)
-                    .append(" :- ").append(predName).append("(L0, ").append(rightId).append("), ")
-                    .append(predName).append("(L1, ").append(rightId).append("), L1<>L0\n");
-            }
-            if (rightEnd.getMax() == 1) {
-                sb.append("  @").append(nextConstraintId[0]++)
-                    .append(" :- ").append(predName).append("(").append(leftId).append(", R0), ")
-                    .append(predName).append("(").append(leftId).append(", R1), R1<>R0\n");
-            }
-        }
-        return sb.toString();
+    /**
+     * Same as {@link #toLogicSchema(UmlModel)} with an explicit inheritance list
+     * (e.g. when generalizations are not all stored on {@code umlModel}).
+     */
+    public LogicSchema toLogicSchema(UmlModel umlModel, List<Inheritance> inheritances) {
+        return UmlModelToLogicSchema.fromUmlModel(umlModel, inheritances);
     }
 
     public JSONObject toJsonSchema(UmlModel umlModel) {
@@ -231,27 +124,59 @@ public final class UmlToLogicSchemaMapper {
         for (Association association : umlModel.getAssociations()) {
             List<AssociationEnd> ends = association.getEnds();
             if (ends.size() != 2) continue;
-            String leftColumn = idColumnName(ends.get(0).getType(), "leftId");
-            String rightColumn = idColumnName(ends.get(1).getType(), "rightId");
+            AssociationEnd leftEnd = ends.get(0);
+            AssociationEnd rightEnd = ends.get(1);
+            String leftColumn = idColumnName(leftEnd.getType(), "leftId");
+            String rightColumn = idColumnName(rightEnd.getType(), "rightId");
+
+            List<String> columnDefs = new ArrayList<>();
+            columnDefs.add("    " + sqlColumnDefinition(leftEnd.getType(), leftColumn));
+            foreignKeyClause(leftEnd, leftColumn).ifPresent(columnDefs::add);
+            columnDefs.add("    " + sqlColumnDefinition(rightEnd.getType(), rightColumn));
+            foreignKeyClause(rightEnd, rightColumn).ifPresent(columnDefs::add);
+
             sb.append("CREATE TABLE ")
                 .append(sqlIdentifier(association.getName()))
                 .append(" (\n")
-                .append("    ").append(sqlIdentifier(leftColumn)).append(" INT,\n")
-                .append("    ").append(sqlIdentifier(rightColumn)).append(" INT\n")
-                .append(");\n\n");
+                .append(String.join(",\n", columnDefs))
+                .append("\n);\n\n");
         }
         return sb.toString();
     }
 
-    private static void appendAuxPredicateIfNeeded(StringBuilder sb, UmlClass c, Set<String> auxPredicatesDefined) {
-        List<String> vars = variableNamesForClassAttributes(c);
-        if (vars.isEmpty()) return;
-        String auxName = "is" + c.getClassName() + "Aux";
-        if (!auxPredicatesDefined.add(auxName)) return;
-        sb.append(auxName)
-            .append("(").append(vars.get(0)).append(") :- ")
-            .append(c.getClassName())
-            .append("(").append(String.join(", ", vars)).append(")\n");
+    /**
+     * Emits {@code FOREIGN KEY} when this association end has maximum multiplicity 1
+     * (e.g. PlantUML {@code "1"} or {@code "0..1"}): the column references the
+     * linked class table on its primary key, or its first attribute if no PK is inferred.
+     */
+    private static Optional<String> foreignKeyClause(AssociationEnd end, String localColumn) {
+        if (end.getMax() != 1) {
+            return Optional.empty();
+        }
+        UmlClass referencedClass = end.getType();
+        return referencableColumn(referencedClass).map(refColumn ->
+                "    FOREIGN KEY (" + sqlIdentifier(localColumn) + ") REFERENCES "
+                        + sqlIdentifier(referencedClass.getClassName()) + "(" + sqlIdentifier(refColumn) + ")");
+    }
+
+    private static Optional<String> referencableColumn(UmlClass c) {
+        String pk = inferPrimaryKey(c);
+        if (pk != null) {
+            return Optional.of(pk);
+        }
+        if (!c.getAttributes().isEmpty()) {
+            return Optional.of(c.getAttributes().get(0).getName());
+        }
+        return Optional.empty();
+    }
+
+    private static String sqlColumnDefinition(UmlClass owner, String attributeName) {
+        for (UmlAttribute attribute : owner.getAttributes()) {
+            if (attribute.getName().equals(attributeName)) {
+                return sqlIdentifier(attributeName) + " " + mapUmlTypeToSql(attribute.getType());
+            }
+        }
+        return sqlIdentifier(attributeName) + " INT";
     }
 
     private static List<String> variableNamesForClassAttributes(UmlClass c) {

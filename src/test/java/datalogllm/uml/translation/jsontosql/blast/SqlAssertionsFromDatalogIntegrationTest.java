@@ -20,14 +20,14 @@ public class SqlAssertionsFromDatalogIntegrationTest {
     void generate_fromFreshPipelineOutput_createsSqlAssertions() throws IOException {
         String uml = """
                 @startuml
-                class User {
+                class Person {
                   + String nif
                   + String name
                 }
                 class Ticket {
                   + Integer id
                 }
-                User "1" -- "0..*" Ticket : opens
+                Person "1" -- "0..*" Ticket : opens
                 @enduml
                 """;
 

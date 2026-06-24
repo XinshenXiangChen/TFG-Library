@@ -138,21 +138,21 @@ public class MetamodelPlantUmlFullPipelineTest {
     private void verifySchemaDL(Path path) throws IOException {
         assertThat(path).exists();
         String datalog = Files.readString(path, StandardCharsets.UTF_8);
-        assertThat(datalog).contains("%+ Classes and associations");
-        assertThat(datalog).contains("%  attends(D0, A0)");
+        assertThat(datalog).contains("attends(");
         assertThat(datalog).contains("%  schedules(P0, A0)");
         assertThat(datalog).contains("isDoctorAux(D0) :- Doctor(D0, D1)");
-        assertThat(datalog).contains("@1 :- attends(D0, A0), not(isDoctorAux(D0))");
-        assertThat(datalog).contains("@2 :- attends(D0, A0), not(isAppointmentAux(A0))");
-        assertThat(datalog).contains("@3 :- schedules(P0, A0), not(isPatientAux(P0))");
-        assertThat(datalog).contains("@4 :- schedules(P0, A0), not(isAppointmentAux(A0))");
-        assertThat(datalog).contains("@5 :- Appointment(A0, A1), not(Minattends_Doctor(A0))");
-        assertThat(datalog).contains("@6 :- attends(L0, A0), attends(L1, A0), L1<>L0");
-        assertThat(datalog).contains("@7 :- Appointment(A0, A1), not(Minschedules_Patient(A0))");
-        assertThat(datalog).contains("@8 :- schedules(L0, A0), schedules(L1, A0), L1<>L0");
+        assertThat(datalog).contains("@1 :- Patient(P0, P1), not(isPersonAux(P0))");
+        assertThat(datalog).contains("@5 :- attends(D0, A0), not(isDoctorAux(D0))");
+        assertThat(datalog).contains("@6 :- attends(D0, A0), not(isAppointmentAux(A0))");
+        assertThat(datalog).contains("@7 :- schedules(P0, A0), not(isPatientAux(P0))");
+        assertThat(datalog).contains("@8 :- schedules(P0, A0), not(isAppointmentAux(A0))");
+        assertThat(datalog).contains("@9 :- Appointment(A0, A1), not(Minattends_Doctor(A0))");
+        assertThat(datalog).contains("@10 :- attends(L0, A0), attends(L1, A0), L1<>L0");
+        assertThat(datalog).contains("@11 :- Appointment(A0, A1), not(Minschedules_Patient(A0))");
+        assertThat(datalog).contains("@12 :- schedules(L0, A0), schedules(L1, A0), L1<>L0");
         assertThat(datalog).contains("%+ OCL constraints (LLM)");
         // Gemini output may vary in exact syntax; assert that LLM constraints were appended.
-        assertThat(datalog).contains("@9");
+        assertThat(datalog).contains("@13");
         assertThat(datalog).contains("Appointment(");
     }
 

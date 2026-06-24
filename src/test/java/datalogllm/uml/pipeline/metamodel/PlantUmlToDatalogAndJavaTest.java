@@ -1,7 +1,7 @@
 package datalogllm.uml.pipeline.metamodel;
 
 import datalogllm.pipeline.PlantUmlPipeline;
-import datalogllm.pipeline.translation.umltodatalog.parser.PlantUmlParser;
+import datalogllm.pipeline.translation.umltodatalog.parser.UmlParser;
 import datalogllm.pipeline.umlMetamodel.UmlModel;
 import org.junit.jupiter.api.Test;
 
@@ -72,7 +72,7 @@ public final class PlantUmlToDatalogAndJavaTest {
         PlantUmlPipeline.generateDatalogAndJsonWithLlmConstraints(EXAMPLE, outputDir);
         PlantUmlPipeline.generateJavaAndSqlFromUmlMetamodel(EXAMPLE, outputDir, javaPackage, livelinessTestPackage);
 
-        UmlModel model = PlantUmlParser.parse(EXAMPLE);
+        UmlModel model = UmlParser.defaultParser().parse(EXAMPLE);
         Path livenessRoot = outputDir.resolve("liveness-tests").resolve("generated").resolve("liveness");
         assertThat(livenessRoot).exists().isDirectory();
 

@@ -25,6 +25,17 @@ public final class SqlAssertionsFromDatalog {
         Objects.requireNonNull(sqlSchemaFile, "sqlSchemaFile must not be null");
         Objects.requireNonNull(outputAssertionsFile, "outputAssertionsFile must not be null");
         LogicSchema logicSchema = parseLogicSchema(datalogSchemaFile);
+        generate(logicSchema, sqlSchemaFile, outputAssertionsFile);
+    }
+
+    /**
+     * Like {@link #generate(Path, Path, Path)} but uses an in-memory {@link LogicSchema}
+     * (e.g. built with {@link datalogllm.pipeline.translation.umltodatalog.mapping.UmlModelToLogicSchema}).
+     */
+    public static void generate(LogicSchema logicSchema, Path sqlSchemaFile, Path outputAssertionsFile) {
+        Objects.requireNonNull(logicSchema, "logicSchema must not be null");
+        Objects.requireNonNull(sqlSchemaFile, "sqlSchemaFile must not be null");
+        Objects.requireNonNull(outputAssertionsFile, "outputAssertionsFile must not be null");
         SQLObjectSchema sqlSchema = parseSqlSchema(sqlSchemaFile);
         BLASTranslator translator = BLASTranslator.one2one(sqlSchema);
         DatalogToSQLTranslationInfo translationInfo = translator.translateDatalogToSql(List.of(), logicSchema, List.of());

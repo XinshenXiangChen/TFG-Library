@@ -1,17 +1,18 @@
 package datalogllm.pipeline.translation.umltodatalog.utils;
 
-import datalogllm.pipeline.translation.umltodatalog.constraints.GeminiNaturalLanguageConstraintGenerator;
+import datalogllm.pipeline.translation.umltodatalog.constraints.ConstraintGeneratorFactory;
 import datalogllm.pipeline.translation.umltodatalog.constraints.NaturalLanguageConstraintGenerator;
-import io.github.cdimascio.dotenv.Dotenv;
+import edu.upc.fib.inlab.imp.kse.logics.logicschema.domain.LogicSchema;
+import edu.upc.fib.inlab.imp.kse.logics.logicschema.services.printer.LogicSchemaPrinter;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Objects;
 
 public final class UmlToDatalogUtils {
-    private static final String DEFAULT_GEMINI_MODEL = "gemini-2.5-flash";
 
     private UmlToDatalogUtils() {
     }
@@ -25,21 +26,24 @@ public final class UmlToDatalogUtils {
         }
     }
 
+    /**
+     * Serializes a {@link LogicSchema} using IMP-Logics {@link LogicSchemaPrinter}
+     * (same formatting as the domain {@code toString()} on constraints and rules).
+     */
+    public static String printLogicSchema(LogicSchema logicSchema) {
+        Objects.requireNonNull(logicSchema, "logicSchema must not be null");
+        return new LogicSchemaPrinter().print(logicSchema);
+    }
+
+    public static void writeLogicSchema(Path path, LogicSchema logicSchema) {
+        write(path, printLogicSchema(logicSchema));
+    }
+
     public static NaturalLanguageConstraintGenerator fromEnvironmentGeminiGenerator() {
-        String apiKey = System.getenv("GEMINI_API_KEY");
-        if (apiKey == null || apiKey.isBlank()) {
-            Dotenv dotenv = Dotenv.configure()
-                .ignoreIfMissing()
-                .load();
-            apiKey = dotenv.get("GEMINI_API_KEY");
-        }
-        if (apiKey == null || apiKey.isBlank()) {
-            throw new IllegalArgumentException("Missing GEMINI_API_KEY (env or .env)");
-        }
-        return new GeminiNaturalLanguageConstraintGenerator(apiKey, DEFAULT_GEMINI_MODEL);
+        return ConstraintGeneratorFactory.fromEnvironment();
     }
 
     public static NaturalLanguageConstraintGenerator fromApiKey(String geminiApiKey) {
-        return new GeminiNaturalLanguageConstraintGenerator(geminiApiKey, DEFAULT_GEMINI_MODEL);
+        return ConstraintGeneratorFactory.fromApiKey(geminiApiKey);
     }
 }

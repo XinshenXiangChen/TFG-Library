@@ -12,34 +12,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class UmlToJsonThenUmlMetamodelToJavaAndSqlTest {
 
-    private static final String UML = """
-            @startuml
-            class Person {
-              + String nif
-              + String name
-            }
-
-            class Patient {
-              + String nif
-              + String healthCardId
-            }
-
-            class Doctor {
-              + String nif
-              + String medicalLicense
-            }
-
-            class Appointment {
-              + Integer id
-              + Date date
-            }
-
-            Person <|-- Patient
-            Person <|-- Doctor
-            Doctor "1" -- "0..*" Appointment : attends
-            Patient "1" -- "0..*" Appointment : schedules
-            @enduml
-            """;
+    private static final String UML = PatientsDiagramFixtures.STRUCTURAL_PLANTUML;
 
     @Test
     void umlToDatalogWithNlConstraints_thenUmlMetamodelToJavaAndSql() throws IOException {
@@ -58,7 +31,7 @@ class UmlToJsonThenUmlMetamodelToJavaAndSqlTest {
         // Verify translation 1
         assertThat(datalogPath).exists();
         assertThat(datalog)
-            .contains("%+ Constraints for hierarchies")
+            .contains("@")
             .contains("Doctor")
             .contains("Person");
 

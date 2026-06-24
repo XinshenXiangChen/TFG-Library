@@ -1,7 +1,7 @@
 package datalogllm.uml.manual;
 
 
-import datalogllm.pipeline.translation.umltodatalog.parser.PlantUmlParser;
+import datalogllm.pipeline.translation.umltodatalog.parser.UmlParser;
 import datalogllm.pipeline.umlMetamodel.Association;
 import datalogllm.pipeline.umlMetamodel.AssociationEnd;
 import datalogllm.pipeline.umlMetamodel.UmlAttribute;
@@ -60,7 +60,7 @@ public final class PlantUmlParserTest {
             """;
 
     public static void main(String[] args) {
-        UmlModel model = PlantUmlParser.parse(EXAMPLE);
+        UmlModel model = UmlParser.defaultParser().parse(EXAMPLE);
 
         System.out.println("=== PlantUmlParser Test (UML metamodel example) ===\n");
 
